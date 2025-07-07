@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Selling Page</title>
+  <script src="https://cdn.jsdelivr.net/npm/appwrite@13.0.1"></script>
+  <link rel="stylesheet" href="sellingcropsstye.css">
+</head>
+<body>
+  <form onsubmit="finalSubmit(); return false;">
+    <label for="crop">Crop Name:</label>
+    <input type="text" id="crop" required><br><br>
+
+    <label for="area">Land Area (acres):</label>
+    <input type="text" id="area" required><br><br>
+
+    <label for="photo">Upload Image:</label>
+    <input type="file" id="photo" name="photo" accept="image/*" required><br><br>
+
+    <img id="preview" alt="Preview" style="max-width: 200px; display: none;" />
+
+    <button type="submit">Submit</button>
+  </form>
+
+  <script>
+    const client = new Appwrite.Client()
+      .setEndpoint("https://cloud.appwrite.io/v1")
+      .setProject("686b85470029b0abd0e8");
+
+    const databases = new Appwrite.Databases(client);
+    const storage = new Appwrite.Storage(client);
+
+    // 👀 Preview uploaded image
+    document.getElementById("photo").addEventListener("change", function (e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const img = document.getElementById("preview");
+          img.src = e.target.result;
+          img.style.display = "block";
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    async function finalSubmit() {
+      const storedData = JSON.parse(localStorage.getItem("formData"));
+      if (!storedData) {
+        alert("Missing previous form data.");
+        return;
+      }
+
+      const crop = document.getElementById("crop").value;
+      const area = document.getElementById("area").value;
+      const photoFile = document.getElementById("photo").files[0];
+
+      if (!photoFile) {
+        alert("Please upload a photo.");
+        return;
+      }
+
+      try {
+        // 1️⃣ Upload image to storage
+        const upload = await storage.createFile(
+  "686ba50b0013858fc171",  // ✅ your real bucket ID
+  "unique()",
+  photoFile
+);
+
+
+        const photoId = upload.$id;
+
+        // 2️⃣ Create final data document
+        const finalData = {
+          ...storedData,
+          crop,
+          area,
+          photo: photoId // just the file ID (string)
+        };
+
+        await databases.createDocument(
+          "686b857300047cc7dd66",  // Your DB ID
+          "686b85ae000b823a9ea7",  // Your Collection ID
+          "unique()",
+          finalData
+        );
+
+        alert("Submitted successfully!");
+        localStorage.removeItem("formData");
+      } catch (error) {
+        console.error(error);
+        alert("Failed: " + error.message);
+      }
+    }
+  </script>
+</body>
+</html>
