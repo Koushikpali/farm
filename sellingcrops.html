@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Selling Page</title>
   <script src="https://cdn.jsdelivr.net/npm/appwrite@13.0.1"></script>
   <link rel="stylesheet" href="sellingcropsstye.css">
@@ -16,20 +18,20 @@
     <label for="photo">Upload Image:</label>
     <input type="file" id="photo" name="photo" accept="image/*" required><br><br>
 
-    <img id="preview" alt="Preview" style="max-width: 200px; display: none;" />
+    <img id="preview" alt="Preview" style="max-width: 200px; display: none;" /><br><br>
 
-    <button type="submit">Submit</button>
+    <button type="submit" id="submitBtn">Submit</button>
   </form>
 
   <script>
-    const client = new Appwrite.Client()
+    const client = new window.Appwrite.Client()
       .setEndpoint("https://cloud.appwrite.io/v1")
-      .setProject("686b85470029b0abd0e8");
+      .setProject("686b85470029b0abd0e8"); // ✅ your Project ID
 
-    const databases = new Appwrite.Databases(client);
-    const storage = new Appwrite.Storage(client);
+    const databases = new window.Appwrite.Databases(client);
+    const storage = new window.Appwrite.Storage(client);
 
-    // 👀 Preview uploaded image
+    // 👀 Image Preview
     document.getElementById("photo").addEventListener("change", function (e) {
       const file = e.target.files[0];
       if (file) {
@@ -44,9 +46,15 @@
     });
 
     async function finalSubmit() {
+      const submitBtn = document.getElementById("submitBtn");
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Uploading...";
+
       const storedData = JSON.parse(localStorage.getItem("formData"));
       if (!storedData) {
         alert("Missing previous form data.");
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Submit";
         return;
       }
 
@@ -56,41 +64,51 @@
 
       if (!photoFile) {
         alert("Please upload a photo.");
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Submit";
         return;
       }
 
       try {
-        // 1️⃣ Upload image to storage
+        // ✅ 1. Upload to storage with public permission
         const upload = await storage.createFile(
-  "686ba50b0013858fc171",  // ✅ your real bucket ID
-  "unique()",
-  photoFile
-);
-
+          "686ba50b0013858fc171", // ✅ Your real bucket ID
+          "unique()",
+          photoFile,
+          [window.Appwrite.Permission.read("any")]
+        );
 
         const photoId = upload.$id;
 
-        // 2️⃣ Create final data document
+        // ✅ 2. Create document in database
         const finalData = {
           ...storedData,
           crop,
           area,
-          photo: photoId // just the file ID (string)
+          photo: photoId
         };
 
         await databases.createDocument(
-          "686b857300047cc7dd66",  // Your DB ID
-          "686b85ae000b823a9ea7",  // Your Collection ID
+          "686b857300047cc7dd66", // ✅ Your DB ID
+          "686b85ae000b823a9ea7", // ✅ Your Collection ID
           "unique()",
           finalData
         );
 
-        alert("Submitted successfully!");
+        alert("✅ Submitted successfully!");
         localStorage.removeItem("formData");
+
+        // Reset form
+        document.querySelector("form").reset();
+        document.getElementById("preview").style.display = "none";
+
       } catch (error) {
-        console.error(error);
-        alert("Failed: " + error.message);
+        console.error("❌ Submission failed:", error);
+        alert("Submission failed: " + error.message);
       }
+
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Submit";
     }
   </script>
 </body>
